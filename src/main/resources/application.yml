@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: elasticbeanstalk-mod-12
+
+app:
+  version: 1.0.0
+  dynamodb:
+    table-name: ${DYNAMODB_TABLE_NAME:mod12-table}
+    region: ${AWS_REGION:us-east-1}
+
+management:
+  endpoint:
+    health:
+      show-details: always

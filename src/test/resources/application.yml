@@ -1,0 +1,6 @@
+app:
+  version: @project.version@
+  dynamodb:
+    region: eu-west-1
+    table-name: messages
+    endpoint: http://localhost:8000
