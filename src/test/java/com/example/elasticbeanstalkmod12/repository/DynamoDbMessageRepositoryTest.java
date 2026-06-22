@@ -24,6 +24,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -123,6 +125,18 @@ class DynamoDbMessageRepositoryTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).id()).isEqualTo("id-1");
         assertThat(result.get(1).id()).isEqualTo("id-2");
+    }
+
+    @Test
+    void deleteById_sendsCorrectDeleteItemRequest() {
+        ArgumentCaptor<DeleteItemRequest> captor = forClass(DeleteItemRequest.class);
+        when(client.deleteItem(captor.capture())).thenReturn(DeleteItemResponse.builder().build());
+
+        repository.deleteById("id-1");
+
+        DeleteItemRequest req = captor.getValue();
+        assertThat(req.tableName()).isEqualTo(TABLE);
+        assertThat(req.key().get("id").s()).isEqualTo("id-1");
     }
 
     @Test

@@ -1,7 +1,9 @@
 package com.example.elasticbeanstalkmod12.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -77,6 +79,22 @@ class MessageControllerTest {
         when(service.getById("missing")).thenThrow(new MessageNotFoundException("missing"));
 
         mockMvc.perform(get("/messages/missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"));
+    }
+
+    @Test
+    void deleteMessagesById_returns204() throws Exception {
+        mockMvc.perform(delete("/messages/uuid-1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteMessagesById_notFound_returns404() throws Exception {
+        doThrow(new MessageNotFoundException("missing")).when(service).delete("missing");
+
+        mockMvc.perform(delete("/messages/missing"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"));

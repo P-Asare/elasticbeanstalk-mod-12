@@ -3,6 +3,7 @@ package com.example.elasticbeanstalkmod12.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.elasticbeanstalkmod12.domain.Message;
@@ -64,6 +65,26 @@ class MessageServiceImplTest {
         when(repository.findById("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getById("missing"))
+                .isInstanceOf(MessageNotFoundException.class)
+                .hasMessageContaining("missing");
+    }
+
+    @Test
+    void delete_callsRepository_whenFound() {
+        Instant now = Instant.now();
+        Message message = new Message("id-1", "Alice", "Hello", now);
+        when(repository.findById("id-1")).thenReturn(Optional.of(message));
+
+        service.delete("id-1");
+
+        verify(repository).deleteById("id-1");
+    }
+
+    @Test
+    void delete_throwsMessageNotFoundException_whenNotFound() {
+        when(repository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete("missing"))
                 .isInstanceOf(MessageNotFoundException.class)
                 .hasMessageContaining("missing");
     }
