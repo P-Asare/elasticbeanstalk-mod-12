@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
@@ -49,6 +50,14 @@ public class DynamoDbMessageRepository implements MessageRepository {
             return Optional.empty();
         }
         return Optional.of(toMessage(response.item()));
+    }
+
+    @Override
+    public void deleteById(String id) {
+        client.deleteItem(DeleteItemRequest.builder()
+                .tableName(tableName)
+                .key(Map.of("id", AttributeValue.fromS(id)))
+                .build());
     }
 
     @Override

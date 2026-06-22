@@ -38,4 +38,11 @@ public class MessageServiceImpl implements MessageService {
                 .map(mapper::toResponse)
                 .toList();
     }
+
+    @Override
+    public void delete(String id) {
+        repository.findById(id)
+                .orElseThrow(() -> new MessageNotFoundException(id));
+        repository.deleteById(id);
+    }
 }

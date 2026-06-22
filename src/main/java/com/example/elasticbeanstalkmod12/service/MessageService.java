@@ -8,4 +8,5 @@ public interface MessageService {
     MessageResponse create(CreateMessageRequest request);
     MessageResponse getById(String id);
     List<MessageResponse> getAll();
+    void delete(String id);
 }
