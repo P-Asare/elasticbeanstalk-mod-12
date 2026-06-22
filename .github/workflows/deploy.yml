@@ -1,0 +1,98 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: eb-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EB_APPLICATION_NAME: ${{ vars.EB_APPLICATION_NAME }}
+      EB_ENVIRONMENT_NAME: ${{ vars.EB_ENVIRONMENT_NAME }}
+      EB_S3_BUCKET: ${{ vars.EB_S3_BUCKET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight validation
+        run: |
+          missing=0
+          for var in AWS_REGION EB_APPLICATION_NAME EB_ENVIRONMENT_NAME EB_S3_BUCKET; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Required variable $var is empty. Set it under Settings > Variables."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+
+      - name: Build application
+        run: ./mvnw clean package -DskipTests
+
+      - name: Stage runnable JAR
+        run: |
+          JAR=$(ls target/*.jar | grep -v '\.original$' | head -n1)
+          [ -z "$JAR" ] && { echo "No jar found"; exit 1; }
+          cp "$JAR" application.jar
+
+      - name: Generate Procfile
+        run: echo 'web: java -jar application.jar --server.port=5000' > Procfile
+
+      - name: Create source bundle
+        run: zip -r deploy.zip application.jar Procfile
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Compute version label
+        id: version
+        run: echo "label=v-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp deploy.zip \
+            "s3://${EB_S3_BUCKET}/${EB_APPLICATION_NAME}/${{ steps.version.outputs.label }}.zip"
+
+      - name: Create application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APPLICATION_NAME" \
+            --version-label "${{ steps.version.outputs.label }}" \
+            --source-bundle "S3Bucket=${EB_S3_BUCKET},S3Key=${EB_APPLICATION_NAME}/${{ steps.version.outputs.label }}.zip" \
+            --auto-create-application
+
+      - name: Deploy to environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --application-name "$EB_APPLICATION_NAME" \
+            --environment-name "$EB_ENVIRONMENT_NAME" \
+            --version-label "${{ steps.version.outputs.label }}"
+
+      - name: Wait for environment update
+        run: |
+          aws elasticbeanstalk wait environment-updated \
+            --application-name "$EB_APPLICATION_NAME" \
+            --environment-names "$EB_ENVIRONMENT_NAME"
