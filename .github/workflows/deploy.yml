@@ -56,7 +56,8 @@ jobs:
           cp "$JAR" application.jar
 
       - name: Generate Procfile
-        run: echo 'web: java -jar application.jar --server.port=5000' > Procfile
+        run: |
+          echo 'web: java -jar application.jar --server.port=5000' > Procfile
 
       - name: Create source bundle
         run: zip -r deploy.zip application.jar Procfile
