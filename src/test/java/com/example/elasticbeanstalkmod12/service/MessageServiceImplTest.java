@@ -104,4 +104,29 @@ class MessageServiceImplTest {
         assertThat(responses.get(0).id()).isEqualTo("id-1");
         assertThat(responses.get(1).id()).isEqualTo("id-2");
     }
+
+    @Test
+    void getByAuthor_returnsFilteredResponses() {
+        Instant now = Instant.now();
+        List<Message> messages = List.of(
+                new Message("id-1", "Alice", "Hello", now),
+                new Message("id-2", "Alice", "World", now)
+        );
+        when(repository.findByAuthor("Alice")).thenReturn(messages);
+
+        List<MessageResponse> responses = service.getByAuthor("Alice");
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(0).author()).isEqualTo("Alice");
+        assertThat(responses.get(1).author()).isEqualTo("Alice");
+    }
+
+    @Test
+    void getByAuthor_returnsEmptyList_whenRepositoryReturnsEmpty() {
+        when(repository.findByAuthor("Nobody")).thenReturn(List.of());
+
+        List<MessageResponse> responses = service.getByAuthor("Nobody");
+
+        assertThat(responses).isEmpty();
+    }
 }

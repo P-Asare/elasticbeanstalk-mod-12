@@ -2,6 +2,8 @@ package com.example.elasticbeanstalkmod12.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -98,6 +100,70 @@ class MessageControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"));
+    }
+
+    @Test
+    void getMessages_withAuthorParam_returns200WithFiltered() throws Exception {
+        Instant now = Instant.now();
+        List<MessageResponse> responses = List.of(
+                new MessageResponse("uuid-1", "Alice", "Hello", now)
+        );
+        when(service.getByAuthor("Alice")).thenReturn(responses);
+
+        mockMvc.perform(get("/messages")
+                        .param("author", "Alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value("uuid-1"))
+                .andExpect(jsonPath("$[0].author").value("Alice"));
+    }
+
+    @Test
+    void getMessages_blankAuthorParam_fallsBackToGetAll() throws Exception {
+        Instant now = Instant.now();
+        List<MessageResponse> responses = List.of(
+                new MessageResponse("uuid-1", "Alice", "Hello", now)
+        );
+        when(service.getAll()).thenReturn(responses);
+
+        mockMvc.perform(get("/messages")
+                        .param("author", "   "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value("uuid-1"));
+
+        verify(service).getAll();
+        verify(service, never()).getByAuthor(any());
+    }
+
+    @Test
+    void getMessages_emptyAuthorParam_fallsBackToGetAll() throws Exception {
+        Instant now = Instant.now();
+        List<MessageResponse> responses = List.of(
+                new MessageResponse("uuid-1", "Alice", "Hello", now)
+        );
+        when(service.getAll()).thenReturn(responses);
+
+        mockMvc.perform(get("/messages")
+                        .param("author", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value("uuid-1"));
+
+        verify(service).getAll();
+        verify(service, never()).getByAuthor(any());
+    }
+
+    @Test
+    void getMessages_authorParamTooLong_returns400() throws Exception {
+        String longAuthor = "a".repeat(101);
+
+        mockMvc.perform(get("/messages")
+                        .param("author", longAuthor))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.messages").isArray())
+                .andExpect(jsonPath("$.messages").isNotEmpty());
     }
 
     @Test

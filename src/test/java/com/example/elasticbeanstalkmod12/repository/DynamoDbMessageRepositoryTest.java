@@ -140,6 +140,70 @@ class DynamoDbMessageRepositoryTest {
     }
 
     @Test
+    void findByAuthor_returnsMatchingMessages() {
+        Instant now = Instant.now();
+        Map<String, AttributeValue> item1 = Map.of(
+                "id", AttributeValue.fromS("id-1"),
+                "author", AttributeValue.fromS("Alice"),
+                "content", AttributeValue.fromS("Hello"),
+                "createdAt", AttributeValue.fromS(now.toString())
+        );
+        Map<String, AttributeValue> item2 = Map.of(
+                "id", AttributeValue.fromS("id-2"),
+                "author", AttributeValue.fromS("Alice"),
+                "content", AttributeValue.fromS("World"),
+                "createdAt", AttributeValue.fromS(now.toString())
+        );
+
+        SdkIterable<Map<String, AttributeValue>> itemsIterable = () -> List.of(item1, item2).iterator();
+        ScanIterable scanIterable = mock(ScanIterable.class);
+        when(scanIterable.items()).thenReturn(itemsIterable);
+        when(client.scanPaginator(any(ScanRequest.class))).thenReturn(scanIterable);
+
+        List<Message> result = repository.findByAuthor("Alice");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).author()).isEqualTo("Alice");
+        assertThat(result.get(1).author()).isEqualTo("Alice");
+    }
+
+    @Test
+    void findByAuthor_specialChars_passesRawValueInExpressionValues() {
+        Instant now = Instant.now();
+        Map<String, AttributeValue> item = Map.of(
+                "id", AttributeValue.fromS("id-1"),
+                "author", AttributeValue.fromS("Alice \"the\" Best: \u00e9"),
+                "content", AttributeValue.fromS("Hello"),
+                "createdAt", AttributeValue.fromS(now.toString())
+        );
+
+        SdkIterable<Map<String, AttributeValue>> itemsIterable = () -> List.of(item).iterator();
+        ScanIterable scanIterable = mock(ScanIterable.class);
+        when(scanIterable.items()).thenReturn(itemsIterable);
+        when(client.scanPaginator(any(ScanRequest.class))).thenReturn(scanIterable);
+
+        ArgumentCaptor<ScanRequest> captor = forClass(ScanRequest.class);
+        repository.findByAuthor("Alice \"the\" Best: \u00e9");
+
+        verify(client).scanPaginator(captor.capture());
+        ScanRequest req = captor.getValue();
+        assertThat(req.filterExpression()).isEqualTo("author = :a");
+        assertThat(req.expressionAttributeValues().get(":a").s()).isEqualTo("Alice \"the\" Best: \u00e9");
+    }
+
+    @Test
+    void findByAuthor_returnsEmptyList_whenNoMatches() {
+        SdkIterable<Map<String, AttributeValue>> itemsIterable = () -> List.<Map<String, AttributeValue>>of().iterator();
+        ScanIterable scanIterable = mock(ScanIterable.class);
+        when(scanIterable.items()).thenReturn(itemsIterable);
+        when(client.scanPaginator(any(ScanRequest.class))).thenReturn(scanIterable);
+
+        List<Message> result = repository.findByAuthor("Nobody");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void toMessage_throwsIllegalStateException_whenAttributeMissing() {
         Map<String, AttributeValue> item = new HashMap<>();
         item.put("author", AttributeValue.fromS("Alice"));
