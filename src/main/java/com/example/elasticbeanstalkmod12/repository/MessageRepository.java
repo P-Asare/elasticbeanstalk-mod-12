@@ -8,5 +8,6 @@ public interface MessageRepository {
     Message save(Message message);
     Optional<Message> findById(String id);
     List<Message> findAll();
+    List<Message> findByAuthor(String author);
     void deleteById(String id);
 }

@@ -69,6 +69,19 @@ public class DynamoDbMessageRepository implements MessageRepository {
                 .toList();
     }
 
+    @Override
+    public List<Message> findByAuthor(String author) {
+        return client.scanPaginator(ScanRequest.builder()
+                        .tableName(tableName)
+                        .filterExpression("author = :a")
+                        .expressionAttributeValues(Map.of(":a", AttributeValue.fromS(author)))
+                        .build())
+                .items()
+                .stream()
+                .map(this::toMessage)
+                .toList();
+    }
+
     private Message toMessage(Map<String, AttributeValue> item) {
         return new Message(
                 getString(item, "id"),

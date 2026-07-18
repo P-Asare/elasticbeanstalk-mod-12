@@ -3,6 +3,7 @@ package com.example.elasticbeanstalkmod12.exception;
 import com.example.elasticbeanstalkmod12.dto.ApiError;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -31,6 +33,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         List<String> messages = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .toList();
+        ApiError body = new ApiError(
+                Instant.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                messages
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiError> handleMethodValidation(HandlerMethodValidationException ex) {
+        List<String> messages = ex.getAllErrors().stream()
+                .map(msr -> Objects.requireNonNullElse(msr.getDefaultMessage(), "Validation error"))
                 .toList();
         ApiError body = new ApiError(
                 Instant.now(),
