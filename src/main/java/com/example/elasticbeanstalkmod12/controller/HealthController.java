@@ -27,11 +27,11 @@ public class HealthController {
         Map<String, Object> body = new LinkedHashMap<>();
 
         if (Status.UP.equals(health.getStatus())) {
-            body.put("status", "UP");
+            body.put("status", "Up");
             return ResponseEntity.ok(body);
         }
 
-        body.put("status", "DOWN");
+        body.put("status", "Down");
         Object reason = health.getDetails().get("reason");
         body.put("reason", reason != null ? reason.toString() : GENERIC_REASON);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
