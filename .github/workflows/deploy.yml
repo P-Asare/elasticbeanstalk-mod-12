@@ -62,6 +62,13 @@ jobs:
       - name: Create source bundle
         run: zip -r deploy.zip application.jar Procfile
 
+      - name: Debug OIDC claims and target role
+        run: |
+          echo "Role secret ARN: ${{ secrets.AWS_ROLE_ARN }}"
+          TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
+              -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}")
+          echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '{sub, aud, repository}' 
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
         with:
